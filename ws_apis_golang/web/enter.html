@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+
+    <script>
+        // GET method
+        //const params = new URLSearchParams(window.location.search);
+        //console.log( params );
+        //const host = (params.get("host") == "0.0.0.0")? "localhost" : params.get("host");
+        //const port = params.get("port");
+
+
+        // Initial POST message
+        // --------------------------------------
+        
+        let host = null;
+        let port = null;
+        let user_id = null;
+        let username = null;
+        let n_max_players = 0;
+        let datetime = null;
+        let prep_time_s = 0;
+        window.addEventListener("message", (event) => {
+            console.log( "Received = ", event.data );
+
+            params = event.data;
+
+            host = (params["host"] == "0.0.0.0")? "localhost" : params["host"];
+            port = params["port"];
+            user_id = params["user_id"];
+            username = params["username"];
+            n_max_players = params["n_max_players"];
+            datetime = params["datetime"];
+            prep_time_s = params["prep_time_s"];
+        });
+
+
+        // WebSocket
+        // --------------------------------------
+        
+        const socket = new WebSocket("ws://localhost:5001/test");
+
+        var dummy = 0;
+
+        socket.onopen = (event) => {
+            console.log("[EVENT] onopen()");
+            payload = { "msg": "from client web", "user_id": user_id, "username": username, };
+            r = { "e": "c", "v": payload, };
+            send( r );
+        };
+
+        socket.onmessage = (event) => { recv( JSON.parse(event.data) ); };
+        socket.onerror = (error) => { console.error("[EVENT] onerror(): ", error); };
+        socket.onclose = (event) => { console.log("[EVENT] onclose()"); };
+
+        function send(v) { socket.send( JSON.stringify(v) ); }
+        function recv(v) {
+            if ( v.hasOwnProperty("e") ) {
+                e = v["e"];
+                if ( e != null ) {
+                    switch ( e ) {
+                        case "s": event_s( v ); break;
+                        case "d": event_d( v ); break;
+                        default: console.log("[EVENT] recv(): no such event, ", e );
+                    }
+                }
+            }
+        }
+
+        // WebSocket: events
+        // --------------------------------------
+        
+        function event_s(v) {
+            console.log("[EVENT] event_s(): ", JSON.stringify(v) );
+
+            dummy += 1;
+            r = { "e": "s", "v": {"dummy": dummy,} };
+            send( r );
+        }
+
+        function event_d(v) {
+            console.log("[EVENT] event_d()");
+        }
+    </script>
+
+</body>
+</html>
+

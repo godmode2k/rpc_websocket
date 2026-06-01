@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+
+    <div>
+        <b> [ creates room ] </b>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th> port </th>
+                    <th> datetime </th>
+                    <th> prep time (seconds) </th>
+                    <th> max_players </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td> <input type="text" id="port" size="10" placeholder="5001" value="5001" /> </td>
+                    <td> <input type="text" id="datetime" size="20" placeholder="2026-01-01 10:00:00", value="2026-01-01 10:00:00" /> </td>
+                    <td> <input type="text" id="prep_time_s" size="5" placeholder="30" value="30" /> </td>
+                    <td> <input type="text" id="n_max_players" size="5" placeholder="30" value="30" /> </td>
+                    <td> <button class="button_creates_room" id="btn_creates_room" onclick="request_create(this)"> create </button> </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <br> <hr> <br>
+
+    <div>
+        <b> user_id: </b> <input type="text" id="user_id" required size="20" />
+        <b> username: </b> <input type="text" id="username" required size="20" />
+    </div>
+    <br>
+
+    <div> <b> [ rooms ] </b> </div>
+    <div id="room_list"></div>
+
+    <script>
+        async function open_url(base_url, data, newtab) {
+            const query = new URLSearchParams(data).toString();
+            const url = `${base_url}?${query}`;
+
+            if ( newtab ) {
+                const newtab = window.open(url, '_blank');
+                if (newtab) newtab.focus();
+            }
+            else {
+                window.location.reload();
+                //window.location.replace(url);
+                //window.location.href = url;
+            }
+        }
+
+        async function open_url_post(base_url, data, newtab) {
+            try {
+                //const query = new URLSearchParams(data).toString();
+                //const url = `${base_url}?${query}`;
+                const url = `${base_url}`;
+
+                if ( newtab ) {
+                    const newtab = window.open(url, '_blank');
+                    //if (newtab) { newtab.focus(); }
+                    if (newtab) {
+                        newtab.onload = () => {
+                            newtab.postMessage( data, "*");
+                        };
+                    }
+                }
+                else {
+                    window.location.reload();
+                    //window.location.replace(url);
+                    //window.location.href = url;
+                }
+
+                /*
+                const response = await fetch("http://localhost:xxxx", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if ( response.ok ) {
+                    const result = await response.json();
+                    console.log( "Success: ", result );
+
+                    const query = new URLSearchParams(data).toString();
+                    const url = `${base_url}?${query}`;
+
+                    if ( newtab ) {
+                        const newtab = window.open(url, '_blank');
+                        if (newtab) newtab.focus();
+                    }
+                    else {
+                        window.location.reload();
+                        //window.location.replace(url);
+                        //window.location.href = url;
+                    }
+                }
+                else {
+                    alert( "POST request failed." );
+                }
+                */
+            }
+            catch (error) {
+                console.error( "Error: ", error );
+            }
+        }
+
+        async function open_rpc(method, params) {
+            const url = "http://localhost:5000/rpc";
+            // NOTE: params: [{"req": params}]
+            const request = { jsonrpc: "2.0", method: method, params: [{req: params}], id: 0 };
+
+            let res = null;
+
+            console.log( "request = ", request );
+
+            await axios.post(url, request)
+                .then(response => {
+                    console.log( "response = ", response.data );
+                    res = response;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+
+            return res;
+        }
+
+        async function request_create(button) {
+            const row = button.closest("tr"); 
+            const cells = row.getElementsByTagName("td");
+            let r = null;
+
+            t = row.getElementsByTagName("input");
+            r = {
+                port: t[0].value,
+                datetime: t[1].value,
+                prep_time_s: t[2].value,
+                n_max_players: t[3].value
+            };
+
+
+            const method = "RPCServerAPIs.JSONRPC_room_create";
+            const params = {
+                "host": "0.0.0.0",
+                "port": "5001",
+                "n_max_players": parseInt(r.n_max_players, 10),
+                "datetime": r.datetime,
+                "prep_time_s": parseInt(r.prep_time_s, 10)
+            };
+
+            console.log( "params = ", params );
+            open_rpc(method, params).then(response => {
+                //console.log( "response = ", response.data )
+                //setTimeout( () => {}, 2000 );
+                window.location.reload();
+            });
+        }
+
+        async function request_close(button) {
+            const row = button.closest("tr"); 
+            const cells = row.getElementsByTagName("td");
+            let r = null;
+
+            r = {
+                //id: cells[0].innerText,
+                room_id: cells[1].innerText,
+                host: cells[2].innerText,
+                port: cells[3].innerText,
+                n_max_players: cells[4].innerText
+            };
+
+            const method = "RPCServerAPIs.JSONRPC_room_close";
+            const params = {
+                "room_id": r.room_id,
+                "port": r.port
+            };
+
+            console.log( "params = ", params );
+            open_rpc(method, params).then(response => {
+                //console.log( "response = ", response.data )
+                //setTimeout( () => {}, 2000 );
+                window.location.reload();
+            });
+        }
+
+        async function request_enter(button) {
+            const row = button.closest("tr"); 
+            const cells = row.getElementsByTagName("td");
+            let r = null;
+
+            r = {
+                //id: cells[0].innerText,
+                room_id: cells[1].innerText,
+                host: cells[2].innerText,
+                port: cells[3].innerText,
+                n_max_players: cells[4].innerText
+            };
+
+
+            const user_id = document.getElementById("user_id").value;
+            const username = document.getElementById("username").value;
+            const payload = {
+                'host': "0.0.0.0",
+                'port': r.port,
+                'room_id': r.room_id,
+                'token': 'token1234',
+                'user_id': user_id,
+                'username': username,
+            };
+            console.log( "user_id = ", user_id );
+            console.log( "username = ", username );
+            console.log( "payload = ", payload );
+
+            if ( !user_id ) {
+                alert( "user_id == null" );
+                return;
+            }
+
+            if ( !username ) {
+                alert( "username == null" );
+                return;
+            }
+
+            //open_url( "enter.html", payload, true );
+            open_url_post( "enter.html", payload, true );
+        }
+    </script>
+
+    <script>
+        const room_list_div = document.getElementById('room_list');
+        const method = "RPCServerAPIs.JSONRPC_room_list";
+        const params = {};
+
+        open_rpc(method, params).then(response => {
+            const room_id_list = response.data["result"]["data"];
+
+            res = "<table id='room_list' border='1'>";
+            res += "<thead>";
+            res += "<tr>";
+            res += "<th>index</th>";
+            res += "<th>room_id</th>";
+            res += "<th>host</th>";
+            res += "<th>port</th>";
+            res += "<th>n_max_players</th>";
+            res += "<th>players</th>";
+            res += "<th>datetime</th>";
+            res += "<th>prep_time_s</th>";
+            res += "</tr>";
+            res += "</thead>";
+            res += "<tbody>";
+
+            for ( let i = 0; i < room_id_list.length; i++ ) {
+                room_id = room_id_list[i]["room_id"];
+                host = room_id_list[i]["host"];
+                port = room_id_list[i]["port"];
+                n_max_player = room_id_list[i]["n_max_players"];
+                players = room_id_list[i]["n_players"];
+
+                timer_set = null;
+                timer_datetime = "";
+                timer_prep_time_s = "";
+
+                if ( room_id_list[i].hasOwnProperty("timer") ) {
+                    timer_set = room_id_list[i]["timer"]; // UTC
+                    if ( timer_set != null ) {
+                        if ( timer_set.hasOwnProperty("datetime") ) { timer_datetime = timer_set["datetime"]; }
+                        if ( timer_set.hasOwnProperty("prep_time_s") ) { timer_prep_time_s = timer_set["prep_time_s"]; }
+                    }
+                }
+
+                button_enter = "<button class='button_enter' id='btn_" + i + "' onclick='request_enter(this)'>enter</button>";
+                button_remove = "<button class='button_enter' id='btn_" + i + "' onclick='request_close(this)'>remove</button>";
+
+                row = "<td>" + i + "</td>";
+                row += "<td>" + room_id + "</td>";
+                row += "<td>" + host + "</td>";
+                row += "<td>" + port + "</td>";
+                row += "<td>" + n_max_player + "</td>";
+                row += "<td>" + players + "</td>";
+                row += "<td>" + timer_datetime + "</td>";
+                row += "<td>" + timer_prep_time_s + "</td>";
+                row += "<td>" + button_enter + "</td>";
+                row += "<td>" + button_remove + "</td>";
+
+                res += "<tr> " + row + "</tr>";
+            }
+            res += "</tbody>";
+            res += "</table>";
+
+            room_list_div.innerHTML += "<div>" + res + "</div>";
+        });
+    </script>
+
+</body>
+</html>
